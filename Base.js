@@ -8,30 +8,17 @@ app.post('/scrape', async (req, res) => {
   const { url, query } = req.body;
 
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-infobars',
-        '--window-position=0,0',
-        '--ignore-certifcate-errors',
-        '--ignore-certifcate-errors-spki-list',
-        '--incognito',
-      ],
-    });
-
+    // Launch a headless instance of Puppeteer
+    const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
 
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36'
-    );
-
-    await page.setViewport({ width: 800, height: 600 });
-
+    // Construct the search URL with the query parameter
     const searchUrl = `${url}?query=${encodeURIComponent(query)}`;
-    await page.goto(searchUrl, { waitUntil: 'networkidle2' });
 
+    // Go to the search URL and wait for the page to load completely
+    await page.goto(searchUrl);
+
+    // Scrape product data from the page
     const data = await page.evaluate(() => {
       const productList = [];
 
@@ -50,12 +37,13 @@ app.post('/scrape', async (req, res) => {
       return productList;
     });
 
+    // Close the Puppeteer instance
     await browser.close();
 
+    // Send the scraped data back to the client in JSON format
     res.status(200).json(data);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'An error occurred while scraping the data.' });
+    console.error(err);res.status(500).json({ error: 'An error occurred while scraping the data.' });
   }
 });
 
