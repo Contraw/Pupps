@@ -14,6 +14,8 @@ app.post('/scrape', async (req, res) => {
 
     // Construct the search URL with the query parameter
     const searchUrl = `${url}?query=${encodeURIComponent(query)}`;
+
+    // Go to the search URL and wait for the page to load completely
     await page.goto(searchUrl);
 
     // Scrape product data from the page
@@ -41,8 +43,7 @@ app.post('/scrape', async (req, res) => {
     // Send the scraped data back to the client in JSON format
     res.status(200).json(data);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'An error occurred while scraping the data.' });
+    console.error(err);res.status(500).json({ error: 'An error occurred while scraping the data.' });
   }
 });
 
