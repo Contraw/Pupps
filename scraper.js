@@ -16,14 +16,14 @@ const app = express();
 const port = process.env.PORT || 3000;
 const BROWSER_POOL_SIZE = 5;
 
-// Use the environmental variable for the Chrome executable path
-const exePath = process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath();
-
 let browserPool = [];
 
 (async () => {
   for (let i = 0; i < BROWSER_POOL_SIZE; i++) {
-    const browser = await puppeteer.launch({ args: args, executablePath: exePath });
+    const browser = await puppeteer.launch({ args: args, executablePath:
+      process.env.NODE_ENV === "production"
+        ? process.env.PUPPETEER_EXECUTABLE_PATH
+        : puppeteer.executablePath(), });
     browserPool.push(browser);
   }
 })();
