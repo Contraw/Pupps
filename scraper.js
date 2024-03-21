@@ -2,6 +2,16 @@ const puppeteer = require('puppeteer');
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 
+const args = [
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  '--disable-infobars',
+  '--window-position=0,0',
+  '--ignore-certificate-errors',
+  '--ignore-certificate-errors-spki-list',
+  '--incognito'
+];
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -10,7 +20,7 @@ let browserPool = [];
 
 (async () => {
   for (let i = 0; i < BROWSER_POOL_SIZE; i++) {
-    const browser = await puppeteer.launch();
+    const browser = await puppeteer.launch({ args: args });
     browserPool.push(browser);
   }
 })();
@@ -21,7 +31,7 @@ app.post('/scrape', async (req, res) => {
   const { url, query } = req.body;
   const requestId = uuidv4();
 
-  console.log(`[${requestId}] Scraping data for query: ${query}`);
+  console.log(`[${requestId}] Received scraping request for query: ${query}`);
 
   const browser = browserPool.shift();
   const page = await browser.newPage();
@@ -38,7 +48,7 @@ app.post('/scrape', async (req, res) => {
         const link = document.querySelectorAll('.b-list-advert-base.qa-advert-list-item')[i].getAttribute('href');
 
         productList.push({
-          Product: title,
+          Product:title,
           Price: price,
           Link: `https://jiji.com.et${link}`,
         });
@@ -47,6 +57,7 @@ app.post('/scrape', async (req, res) => {
       return productList;
     });
 
+    console.log(`[${requestId}] Scraping success: 200 OK `);
     res.status(200).json({ products });
   } catch (err) {
     console.error(`[${requestId}] Scraping error: ${err.message}`);
