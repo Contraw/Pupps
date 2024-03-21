@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "express": "^4.18.3",
-    "puppeteer-core": "^22.6.0",
+    "puppeteer": "^22.5.0",
     "uuid": "^9.0.1"
   },
   "keywords": [
