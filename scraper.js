@@ -14,6 +14,7 @@ app.post('/scrape', async (req, res) => {
   try {
     const browser = await puppeteer.launch({
       headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -23,7 +24,6 @@ app.post('/scrape', async (req, res) => {
         '--ignore-certifcate-errors-spki-list',
         '--incognito',
       ],
-      executablePath: process.env.NODE_ENV === 'production' ? process.env.PUPPETEER_EXECUTABLE_PATH : puppeteer.executablePath()
     });
 
     const page = await browser.newPage();
