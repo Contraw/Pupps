@@ -45,7 +45,7 @@ app.post('/scrape', async (req, res) => {
     const products = await page.evaluate(() => {
       const productList = [];
 
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < 10; i++) {
         const priceEl = document.querySelectorAll('.b-list-advert__price-base .qa-advert-price')[i];
         if (!priceEl) break;
 
