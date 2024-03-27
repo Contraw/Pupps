@@ -5,14 +5,17 @@ require("dotenv").config();
 const app = express();
 app.use(express.json());
 
+let browser;
+
+const generateRequestId = () => {
+  // Implement a function to generate a unique request ID
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
 app.post('/scrape', async (req, res) => {
-  const requestId = generateRequestId(); // Implement a function to generate a unique request ID
-  console.log(`[Request ${requestId}] Start scraping...`);
-
-  const { url, query } = req.body;
-
-  try {
-    const browser = await puppeteer.launch({
+  if (!browser) {
+    console.log('Launching a new browser instance...');
+    browser = await puppeteer.launch({
       headless: true,
       executablePath:
       process.env.NODE_ENV === "production"
@@ -28,12 +31,19 @@ app.post('/scrape', async (req, res) => {
         '--incognito',
       ],
     });
+  }
 
+  const requestId = generateRequestId();
+  console.log(`[Request ${requestId}] Start scraping...`);
+
+  const { url, query } = req.body;
+
+  try {
     const page = await browser.newPage();
 
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36'
-);
+    );
 
     await page.setViewport({ width: 800, height: 600 });
 
@@ -71,20 +81,20 @@ app.post('/scrape', async (req, res) => {
 
     console.log(`[Request ${requestId}] Scraping completed.`);
 
-    await browser.close();
+    await page.close();
 
     console.log(`[Request ${requestId}] Response sent.`);
     res.status(200).json({ products });
   } catch (err) {
+    if (browser) {
+      await browser.close();
+      browser = null;
+    }
+
     console.error(`[Request ${requestId}] Error:`, err);
     res.status(500).json({ error: 'An error occurred while scraping the data.' });
   }
 });
-
-const generateRequestId = () => {
-  // Implement a function to generate a unique request ID
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
-};
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
