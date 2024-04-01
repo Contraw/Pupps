@@ -15,22 +15,28 @@ const generateRequestId = () => {
 app.post('/scrape', async (req, res) => {
   if (!browser) {
     console.log('Launching a new browser instance...');
-    browser = await puppeteer.launch({
-      headless: true,
-      executablePath:
-      process.env.NODE_ENV === "production"
-        ? process.env.PUPPETEER_EXECUTABLE_PATH
-        : puppeteer.executablePath(),
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-infobars',
-        '--window-position=0,0',
-        '--ignore-certifcate-errors',
-        '--ignore-certifcate-errors-spki-list',
-        '--incognito',
-      ],
-    });
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        executablePath:
+          process.env.NODE_ENV === "production"
+            ? process.env.PUPPETEER_EXECUTABLE_PATH
+            : puppeteer.executablePath(),
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-infobars',
+          '--window-position=0,0',
+          '--ignore-certifcate-errors',
+          '--ignore-certifcate-errors-spki-list',
+          '--incognito',
+        ],
+      });
+    } catch (err) {
+      console.error(`[Request ${requestId}] Error launching browser:`, err);
+      res.status(500).json({ error: 'An error occurred while launching the browser.' });
+      return;
+    }
   }
 
   const requestId = generateRequestId();
@@ -49,7 +55,13 @@ app.post('/scrape', async (req, res) => {
 
     const searchUrl = `${url}?query=${query}`;
     console.log(`[Request ${requestId}] Going to URL: ${searchUrl}`);
-    await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 0 });
+    try {
+      await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 0 });
+    } catch (gotoErr) {
+      console.error(`[Request ${requestId}] Error going to URL:`, gotoErr);
+      await page.close();
+      throw new Error('Error going to URL');
+    }
     console.log(`[Request ${requestId}] Page load complete.`);
 
     const products = await page.evaluate(() => {
@@ -87,12 +99,20 @@ app.post('/scrape', async (req, res) => {
     res.status(200).json({ products });
   } catch (err) {
     if (browser) {
-      await browser.close();
+      try {
+        await browser.close();
+     } catch (closeErr) {
+        console.error(`[Request ${requestId}] Error closing browser:`, closeErr);
+      }
       browser = null;
     }
 
     console.error(`[Request ${requestId}] Error:`, err);
-    res.status(500).json({ error: 'An error occurred while scraping the data.' });
+    if (err.message === 'Error going to URL') {
+      res.status(500).json({ error: 'An error occurred while going to the URL.' });
+    } else {
+      res.status(500).json({ error: 'An error occurred while scraping the data.' });
+    }
   }
 });
 
