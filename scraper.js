@@ -1,118 +1,66 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
-require("dotenv").config();
 
 const app = express();
 app.use(express.json());
 
-let browser;
-
-const generateRequestId = () => {
-  // Implement a function to generate a unique request ID
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
-};
-
-app.post('/scrape', async (req, res) => {
-  if (!browser) {
-    console.log('Launching a new browser instance...');
-    try {
-      browser = await puppeteer.launch({
-        headless: true,
-        executablePath:
+async function launchBrowser() {
+  return puppeteer.launch({
+    headless: true,
+    executablePath:
           process.env.NODE_ENV === "production"
             ? process.env.PUPPETEER_EXECUTABLE_PATH
             : puppeteer.executablePath(),
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-infobars',
-          '--window-position=0,0',
-          '--ignore-certifcate-errors',
-          '--ignore-certifcate-errors-spki-list',
-          '--incognito',
-        ],
-      });
-    } catch (err) {
-      console.error(`[Request ${requestId}] Error launching browser:`, err);
-      res.status(500).json({ error: 'An error occurred while launching the browser.' });
-      return;
-    }
+    args: ['--no-sandbox', '--disable-setuid-sandbox','--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x664) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',]
+  });
+}
+
+let browserPromise = launchBrowser();
+
+app.post('/scrape', async (req, res) => {
+  const { url, query } = req.body;
+  if (!url || !query) {
+    return res.status(400).json({ error: 'URL and query are required.' });
   }
 
-  const requestId = generateRequestId();
-  console.log(`[Request ${requestId}] Start scraping...`);
-
-  const { url, query } = req.body;
-
   try {
+    const startTime = Date.now();
+    const browser = await browserPromise;
     const page = await browser.newPage();
+    const searchUrl = `${url}?query=${encodeURIComponent(query)}`;
 
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36'
-    );
-
-    await page.setViewport({ width: 800, height: 600 });
-
-    const searchUrl = `${url}?query=${query}`;
-    console.log(`[Request ${requestId}] Going to URL: ${searchUrl}`);
-    try {
-      await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 0 });
-    } catch (gotoErr) {
-      console.error(`[Request ${requestId}] Error going to URL:`, gotoErr);
-      await page.close();
-      throw new Error('Error going to URL');
-    }
-    console.log(`[Request ${requestId}] Page load complete.`);
+    await page.goto(searchUrl, { waitUntil: 'networkidle0' });
 
     const products = await page.evaluate(() => {
-      const productList = [];
-
+      const result = [];
       for (let i = 0; i < 5; i++) {
-        const priceEl = document.querySelectorAll('.b-list-advert__price-base .qa-advert-price')[i];
-        if (!priceEl) break;
-
-        const price = priceEl.innerText.trim();
-        const titleEl = document.querySelectorAll('.b-advert-title-inner.qa-advert-title')[i];
-        if (!titleEl) break;
-
-        const title = titleEl.innerText.trim();
-        const linkEl = document.querySelectorAll('.b-list-advert-base.qa-advert-list-item')[i];
-        if (!linkEl) break;
-
-        const link = linkEl.getAttribute('href');
-
-        productList.push({
-          Product: title,
-          Price: price,
-          Link: `https://jiji.com.et${link}`,
-        });
+          const priceEl = document.querySelectorAll('.b-list-advert__price-base .qa-advert-price')[i];
+          if (!priceEl) break;
+  
+          const price = priceEl.innerText.trim();
+          const titleEl = document.querySelectorAll('.b-advert-title-inner.qa-advert-title')[i];
+          if (!titleEl) break;
+  
+          const title = titleEl.innerText.trim();
+          const linkEl = document.querySelectorAll('.b-list-advert-base.qa-advert-list-item')[i];
+          if (!linkEl) break;
+  
+          const link = linkEl.getAttribute('href');
+          result.push({ title, price, link });
       }
-
-      return productList;
+      return result;
     });
-
-    console.log(`[Request ${requestId}] Scraping completed.`);
 
     await page.close();
 
-    console.log(`[Request ${requestId}] Response sent.`);
-    res.status(200).json({ products });
-  } catch (err) {
-    if (browser) {
-      try {
-        await browser.close();
-     } catch (closeErr) {
-        console.error(`[Request ${requestId}] Error closing browser:`, closeErr);
-      }
-      browser = null;
-    }
+    const endTime = Date.now();
+    const timeTaken = (endTime - startTime) / 1000;
+    console.log(`Scraping completed in ${timeTaken} seconds.`);
 
-    console.error(`[Request ${requestId}] Error:`, err);
-    if (err.message === 'Error going to URL') {
-      res.status(500).json({ error: 'An error occurred while going to the URL.' });
-    } else {
-      res.status(500).json({ error: 'An error occurred while scraping the data.' });
-    }
+    res.status(200).json({ products, timeTaken });
+  } catch (err) {
+    console.error('Scraping error:', err);
+    res.status(500).json({ error: 'An error occurred while scraping the data.' });
   }
 });
 
