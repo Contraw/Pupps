@@ -55,7 +55,7 @@ app.post('/scrape', async (req, res) => {
 
     const endTime = Date.now();
     const timeTaken = (endTime - startTime) / 1000;
-    console.log(`Scraping completed in ${timeTaken} seconds.`);
+    console.log(`Scraping took ${timeTaken} seconds.`);
 
     res.status(200).json({ products, timeTaken });
   } catch (err) {
