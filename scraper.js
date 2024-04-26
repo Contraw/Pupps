@@ -27,7 +27,7 @@ app.post('/scrape', async (req, res) => {
     const startTime = Date.now();
     const browser = await browserPromise;
     const page = await browser.newPage();
-    const searchUrl = `${url}?query=${encodeURIComponent(query)}`;
+    const searchUrl = `${url}?${query}`;
 
     await page.goto(searchUrl, { waitUntil: 'networkidle0' });
 
