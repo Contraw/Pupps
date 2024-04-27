@@ -45,7 +45,7 @@ app.post('/scrape', async (req, res) => {
           const linkEl = document.querySelectorAll('.b-list-advert-base.qa-advert-list-item')[i];
           if (!linkEl) break;
   
-          const link = linkEl.getAttribute('href');
+          const link = `https://jiji.com.et`+linkEl.getAttribute('href');
           result.push({ title, price, link });
       }
       return result;
