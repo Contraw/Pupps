@@ -11,7 +11,22 @@ async function launchBrowser() {
           process.env.NODE_ENV === "production"
             ? process.env.PUPPETEER_EXECUTABLE_PATH
             : puppeteer.executablePath(),
-    args: ['--no-sandbox', '--disable-setuid-sandbox','--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x664) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',]
+    args: ['--no-sandbox',
+           '--disable-setuid-sandbox',
+           '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x664) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+           '--disable-dev-shm-usage',
+           '--disable-accelerated-2d-canvas',
+           '--disable-accelerated-jpeg-decoding',
+           '--no-zygote',
+           '--single-process',
+           '--disable-gpu',
+           '--disable-software-rasterizer',
+           '--remote-debugging-port=0',
+           '--autoplay-policy=user-gestures-required',
+           '--disable-infobars',
+           '--hide-scrollbars',
+           '--mute-audio'
+          ]
   });
 }
 
@@ -29,11 +44,11 @@ app.post('/scrape', async (req, res) => {
     const page = await browser.newPage();
     const searchUrl = `${url}?${query}`;
 
-    await page.goto(searchUrl, { waitUntil: 'networkidle0' });
+    await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
 
     const products = await page.evaluate(() => {
       const result = [];
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 5; i++) {
           const priceEl = document.querySelectorAll('.b-list-advert__price-base .qa-advert-price')[i];
           if (!priceEl) break;
   
