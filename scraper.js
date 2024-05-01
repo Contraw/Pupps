@@ -56,12 +56,12 @@ app.post('/scrape', async (req, res) => {
           const titleEl = document.querySelectorAll('.b-advert-title-inner.qa-advert-title')[i];
           if (!titleEl) break;
   
-          const title = titleEl.innerText.trim();
+          const product = titleEl.innerText.trim();
           const linkEl = document.querySelectorAll('.b-list-advert-base.qa-advert-list-item')[i];
           if (!linkEl) break;
   
           const link =`https://jiji.com.et`+linkEl.getAttribute('href');
-          result.push({ title, price, link: `[Link](${link})` });
+          result.push({ product, price, link });
       }
       return result;
     });
