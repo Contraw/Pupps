@@ -25,10 +25,15 @@ async function launchBrowser() {
            '--autoplay-policy=user-gestures-required',
            '--disable-infobars',
            '--hide-scrollbars',
-           '--mute-audio'
+           '--mute-audio',
+           '--headless',
+           '--disable-renderer-backgrounding',
+           '--disable-backgrounding-occluded-windows',
+           '--disable-background-timer-throttling'
           ]
   });
 }
+
 
 let browserPromise = launchBrowser();
 
@@ -43,6 +48,15 @@ app.post('/scrape', async (req, res) => {
     const browser = await browserPromise;
     const page = await browser.newPage();
     const searchUrl = `${url}?${query}`;
+    
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      if (['image', 'stylesheet', 'font', 'sub_frame', 'script'].includes(req.resourceType())) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
 
     await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
 
