@@ -4,38 +4,35 @@ const puppeteer = require('puppeteer');
 const app = express();
 app.use(express.json());
 
+let browser;
+
 async function launchBrowser() {
-  return puppeteer.launch({
+  browser = await puppeteer.launch({
     headless: true,
-    executablePath:
-          process.env.NODE_ENV === "production"
-            ? process.env.PUPPETEER_EXECUTABLE_PATH
-            : puppeteer.executablePath(),
     args: ['--no-sandbox',
-           '--disable-setuid-sandbox',
-           '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x664) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
-           '--disable-dev-shm-usage',
-           '--disable-accelerated-2d-canvas',
-           '--disable-accelerated-jpeg-decoding',
-           '--no-zygote',
-           '--single-process',
-           '--disable-gpu',
-           '--disable-software-rasterizer',
-           '--remote-debugging-port=0',
-           '--autoplay-policy=user-gestures-required',
-           '--disable-infobars',
-           '--hide-scrollbars',
-           '--mute-audio',
-           '--headless',
-           '--disable-renderer-backgrounding',
-           '--disable-backgrounding-occluded-windows',
-           '--disable-background-timer-throttling'
-          ]
+    '--disable-setuid-sandbox',
+    '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x664) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+   //  '--disable-dev-shm-usage',
+    '--disable-accelerated-2d-canvas',
+    '--disable-accelerated-jpeg-decoding',
+    '--no-zygote',
+    '--single-process',
+    '--disable-gpu',
+    '--disable-software-rasterizer',
+    '--remote-debugging-port=0',
+    '--autoplay-policy=user-gestures-required',
+    '--disable-infobars',
+    '--hide-scrollbars',
+    '--mute-audio',
+    '--headless',
+    '--disable-renderer-backgrounding',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-background-timer-throttling'
+   ]
   });
 }
 
-
-let browserPromise = launchBrowser();
+launchBrowser();
 
 app.post('/scrape', async (req, res) => {
   const { url, query } = req.body;
@@ -45,37 +42,39 @@ app.post('/scrape', async (req, res) => {
 
   try {
     const startTime = Date.now();
-    const browser = await browserPromise;
     const page = await browser.newPage();
     const searchUrl = `${url}?${query}`;
     
     await page.setRequestInterception(true);
     page.on('request', (req) => {
-      if (['image', 'stylesheet', 'font', 'sub_frame', 'script'].includes(req.resourceType())) {
+      if (['image', 'stylesheet', 'font', 'script'].includes(req.resourceType())) {
         req.abort();
       } else {
         req.continue();
       }
     });
 
-    await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
+    await page.goto(searchUrl, { 
+      waitUntil: 'domcontentloaded',
+      timeout: 15000
+    });
 
     const products = await page.evaluate(() => {
       const result = [];
       for (let i = 0; i < 5; i++) {
-          const priceEl = document.querySelectorAll('.b-list-advert__price-base .qa-advert-price')[i];
-          if (!priceEl) break;
-  
-          const price = priceEl.innerText.trim();
-          const titleEl = document.querySelectorAll('.b-advert-title-inner.qa-advert-title')[i];
-          if (!titleEl) break;
-  
-          const product = titleEl.innerText.trim();
-          const linkEl = document.querySelectorAll('.b-list-advert-base.qa-advert-list-item')[i];
-          if (!linkEl) break;
-  
-          const link =`https://jiji.com.et`+linkEl.getAttribute('href');
-          result.push({ product, price, link });
+        const priceEl = document.querySelectorAll('.b-list-advert__price-base .qa-advert-price')[i];
+        if (!priceEl) break;
+
+        const price = priceEl.innerText.trim();
+        const titleEl = document.querySelectorAll('.b-advert-title-inner.qa-advert-title')[i];
+        if (!titleEl) break;
+
+        const product = titleEl.innerText.trim();
+        const linkEl = document.querySelectorAll('.b-list-advert-base.qa-advert-list-item')[i];
+        if (!linkEl) break;
+
+        const link = `https://jiji.com.et` + linkEl.getAttribute('href');
+        result.push({ product, price, link });
       }
       return result;
     });
